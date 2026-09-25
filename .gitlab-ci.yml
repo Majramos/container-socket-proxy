@@ -1,0 +1,72 @@
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
+    - when: never
+
+stages:
+  - lint
+  - test
+  - publish
+
+variables:
+  UV_CACHE_DIR: "$CI_PROJECT_DIR/.uv-cache"
+
+default:
+  image: ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+  cache:
+    key:
+      files:
+        - uv.lock
+    paths:
+      - .uv-cache/
+  before_script:
+    - uv sync --locked
+
+check_format:
+  stage: lint
+  script:
+    - uv run ruff format --check
+    - uv run ruff check --output-format=gitlab --output-file=code-quality-report.json
+  artifacts:
+    when: always
+    reports:
+      codequality: code-quality-report.json
+
+type_check:
+  stage: lint
+  script:
+    - uv run mypy scripts tests
+
+run_tests:
+  stage: test
+  script:
+    - uv run pytest --junitxml=report.xml --cov --cov-report=term --cov-report=xml:coverage.xml
+  coverage: '/TOTAL.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+  artifacts:
+    when: always
+    reports:
+      junit: report.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+    paths:
+      - report.xml
+      - coverage.xml
+
+publish:
+  stage: publish
+  image: quay.io/buildah/stable:v1.43.2
+  needs: []
+  resource_group: registry
+  retry: 1
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  before_script:
+    - printf '%s' "$CI_REGISTY_PASSWORD" | buildah login --username "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+  script:
+    - buildah bud --storage-driver vfs --isolation chroot --tag "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA" .
+    - buildah push --storage-driver vfs "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
+    - buildah push --storage-driver vfs "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA" "$CI_REGISTRY_IMAGE:latest"
+  after_script:
+    -buildah logout "$CI_REGISTRY"
