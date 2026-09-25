@@ -63,10 +63,10 @@ publish:
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   before_script:
-    - printf '%s' "$CI_REGISTY_PASSWORD" | buildah login --username "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+    - printf '%s' "$CI_REGISTRY_PASSWORD" | buildah login --username "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
   script:
     - buildah bud --storage-driver vfs --isolation chroot --tag "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA" .
     - buildah push --storage-driver vfs "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
     - buildah push --storage-driver vfs "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA" "$CI_REGISTRY_IMAGE:latest"
   after_script:
-    -buildah logout "$CI_REGISTRY"
+    - buildah logout "$CI_REGISTRY"
