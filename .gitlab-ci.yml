@@ -36,7 +36,7 @@ check_format:
 type_check:
   stage: lint
   script:
-    - uv run mypy scripts tests
+    - uv run mypy main.py container_socket_proxy tests
 
 run_tests:
   stage: test
