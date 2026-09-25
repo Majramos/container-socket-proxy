@@ -1,7 +1,7 @@
 .RECIPEPREFIX := $() $()
 CONTAINER_CLI ?= $(shell command -v podman 2>/dev/null || command -v docker 2>/dev/null)
 
-.PHONY: install run image test style lint fmt format-check clean verify
+.PHONY: install run image test style lint fmt format-check clean verify setup-pre-commit
 
 install:
     uv sync
@@ -23,7 +23,7 @@ lint:
     uv run ruff check .
 
 fmt:
-    uv run ruff format --check .
+    uv run ruff format .
 
 verify: lint style test
 
@@ -31,3 +31,7 @@ clean:
     find . -type d -name __pycache__ -exec rm -rf {} +
     find . -type f -name "*.pyc" -delete
     rm -rf .pytest_cache .ruff_cache .mypy_cache
+
+setup-pre-commit:
+    uv run pre-commit install
+    uv run pre-commit install --hook-type commit-msg
